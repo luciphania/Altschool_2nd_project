@@ -1,0 +1,21 @@
+
+# ignore all .files
+.deploy.yml.un~
+.inventory.yml.un~
+.lamp_provision.sh.un~
+.laravel.sh.un~
+.provision-master.sh.un~
+.provision-slave.sh.un~
+
+# ignore deploy.yml~
+deploy.yml~
+
+# ignore provision master and slave
+provision-master.sh~
+provision-slave.sh~
+
+# ignore Vagrantfile
+Vagrantfile~
+Vagrantfile
+.Vagrantfile.un~
+.vagrant

@@ -1,0 +1,277 @@
+- name: Ansible tasks for configuring the servers
+  hosts: Slave
+    become: true
+
+  tasks:
+  - name: Update Apt Repository
+      apt: update_cache=yes cache_valid_time=3600
+
+    #- name: Upgrade The Apt Repository'
+    #: apt: upgrade=yes cache_valid_time=3600
+
+    #- name: Provision script to install LAMP dependencies
+     # copy:
+      #src: /home/vagrant/lamp_provision.sh
+      # dest: /home/vagrant
+     # mode: '0775'
+     # owner: vagrant
+    # group: vagrant
+
+
+- name: Install 'wget', 'curl', 'git', 'apache2'
+  apt:
+  pkg:
+    - wget
+    - curl
+    - git
+
+- name: Install UFW
+    apt:
+    name: ufw
+    state: present
+
+- name: Allow Apache
+      ufw:
+      name: Apache
+      rule: allow
+
+- name: Allow OpenSSH
+  ufw: name=OpenSSH rule=allow
+
+- name: Allow port 22 (SSH)
+   ufw:
+     port: '22'
+     proto: tcp
+     rule: allow
+
+- name: Allow port 80 (HTTP)
+      ufw:
+       port: '80'
+        proto: tcp
+        rule: allow
+
+- name: Allow port 443 (HTTPs)
+      ufw:
+      port: '443'
+      rule: allow
+
+- name: Allow port 3306 (MySQL)
+      ufw:
+      port: '3306'
+      rule: allow
+
+- name: Enable UFW
+      ufw: state=enabled policy=allow
+
+- name: Update Apt Repository
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Download Composer installer
+  get_url:
+  url: https://getcomposer.org/installer
+   dest: /tmp/composer-setup.php
+
+- name: Install Composer
+  command: php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+    become: yes
+
+- name: Execute Permission for composer file
+  file:
+    path: /usr/local/bin/composer
+    mode: u+x
+   state: file
+   become: yes
+
+#  - name: Copy the Provisioning Script
+ #copy:
+#  src: laravel.sh
+ #  dest: /home/vagrant
+ #  mode: '0775'
+ # owner: vagrant
+# group: vagrant
+
+# - name: Execute the Provisioning Script
+   #command: sh /home/vagrant/laravel.sh
+
+
+- name: Giving right permissions to File
+  file:
+    path: /var/www/html/mysql_laravel
+    recurse: yes
+    owner: vagrant
+     group: vagrant
+
+  - name: Install App Dependencies
+    hosts: Slave
+
+    tasks:
+    - name: Update
+      composer:
+      command: update
+        working_dir: /var/www/html/mysql_laravel
+
+  - name: Composer Install
+    composer:
+     command: install
+     working_dir: /var/www/html/mysql_laravel
+
+  - name: Continue App Deployment
+    hosts: Slave
+     become: true
+
+     tasks:
+     - name: Change owner of laravel folder
+       file:
+       path: /var/www/html/mysql_laravel
+       state: directory
+       recurse: yes
+       owner: www-data
+       group: www-data
+       mode: '0775'
+
+ - name: Change file permission of storage
+   file:
+     path: /var/www/html/mysql_laravel/storage
+      state: directory
+      recurse: yes
+      owner: www-data
+      group: www-data
+      mode: '0775'
+
+- name: Change file permission of bootstrap cache
+  file: 
+   path: /var/www/html/mysql_laravel/bootstrap/cache
+   state: directory                                                     
+   recurse: yes
+   owner: www-data   
+   group: www-data    
+   mode: '0775'
+
+- name: Copying env file
+  command: sudo cp /var/www/html/mysql_laravel/.env.example /var/www/html/mysql_laravel/.env
+
+- name: Create an apache virtual host configuration file
+    ansible.builtin.copy:
+    dest: /var/www/html/mysql_laravel/.env
+     content:
+      APP_NAME="Laravel Realworld Example App"
+      APP_ENV=local
+      APP_KEY=
+      APP_DEBUG=true
+      APP_URL=http://192.168.232.9
+      APP_PORT=3000
+
+      LOG_CHANNEL=stack
+
+      LOG_DEPRECATIONS_CHANNEL=null
+      LOG_LEVEL=debug
+
+      DB_CONNECTION=mysql
+      DB_HOST=127.0.0.1
+      DB_PORT=3306
+      DB_DATABASE=mysqlproject
+      DB_USERNAME=luciphania
+      DB_PASSWORD=Hokage_6969
+
+  BROADCAST_DRIVER=log
+    CACHE_DRIVER=file
+    FILESYSTEM_DISK=local
+    QUEUE_CONNECTION=sync
+    SESSION_DRIVER=file
+    SESSION_LIFETIME=120
+
+    MEMCACHED_HOST=127.0.0.1
+
+    REDIS_HOST=127.0.0.1
+    REDIS_PASSWORD=null
+    REDIS_PORT=6379
+
+    MAIL_MAILER=smtp
+    MAIL_HOST=mailhog
+    MAIL_PORT=1025
+    MAIL_USERNAME=null
+    MAIL_PASSWORD=null
+    MAIL_ENCRYPTION=null
+
+    MAIL_FROM_ADDRESS="hello@example.com"
+    MAIL_FROM_NAME="${APP_NAME}"
+
+    AWS_ACCESS_KEY_ID=
+    AWS_SECRET_ACCESS_KEY=
+    AWS_DEFAULT_REGION=us-east-1
+    AWS_BUCKET=
+    AWS_USE_PATH_STYLE_ENDPOINT=false
+
+   PUSHER_APP_ID=
+   PUSHER_APP_KEY=
+   PUSHER_APP_SECRET=
+   PUSHER_APP_CLUSTER=mt1
+
+   MIX_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+   MIX_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+
+- name: Create the web.php file in the routes directory
+  ansible.builtin.copy:
+    dest: /var/www/html/mysql_laravel/routes/web.php
+     content: |
+     <?php
+
+      Route::get('/', function () {
+        return view('welcome');
+             });
+
+    - name: Download and install all requirements
+      shell: composer install --no-interaction
+          args:
+          chdir: /var/www/html/mysql_laravel
+
+    - name: Generate App key
+      shell: |
+        cd /var/www/html/mysql_laravel
+        php artisan key:generate
+       become: yes
+
+        - name: Run the php artisan:cache
+          shell: |
+            cd /var/www/html/mysql_laravel
+            php artisan config:cache
+          become: yes
+
+    # - name: Run the php artisan:fresh
+    #shell: |
+   #   cd /var/www/html/mysql_laravel
+     #   php artisan migrate
+          #become: yes
+    
+
+    # - name: Run the php artisan .... command
+    #shell: |
+    #    cd /var/www/html/mysql_laravel
+     #   php artisan migrate --seed
+     # become: yes
+
+ - name: Create an apache virtual host configuration file
+   ansible.builtin.copy:
+      dest: /etc/apache2/sites-available/mysql_laravel.conf
+        content: |
+               <VirtualHost *:80>
+                   ServerAdmin admin@192.168.232.9
+                   ServerName 192.168.232.9
+                   DocumentRoot /var/www/html/mysql_laravel/public
+                   
+                   <Directory /var/www/html/mysql_laravel/public>
+                      AllowOverride All
+                   </Directory>
+
+                 ErrorLog ${APACHE_LOG_DIR}/error.log
+                 CustomLog ${APACHE_LOG_DIR}/access.log combined
+               </VirtualHost>
+
+
+    - name: Enable the new config
+          shell: |
+          a2enmod rewrite
+          a2dissite 000-default.conf
+          a2ensite mysql_laravel.conf
+          systemctl reload apache2
+        become: yes

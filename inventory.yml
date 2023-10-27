@@ -1,0 +1,4 @@
+virtual machines:
+    hosts:
+      Slave:
+         ansible_host: 192.168.232.9
